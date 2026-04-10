@@ -190,10 +190,17 @@ document.addEventListener('DOMContentLoaded', () => {
         cards.forEach((card, i) => {
           card.style.opacity = '0';
           card.style.transform = 'translateY(20px)';
+          card.style.transition = '';
           setTimeout(() => {
             card.style.transition = `opacity 0.5s cubic-bezier(0.16,1,0.3,1) ${i * 60}ms, transform 0.5s cubic-bezier(0.16,1,0.3,1) ${i * 60}ms`;
             card.style.opacity = '1';
             card.style.transform = 'translateY(0)';
+            // Clear inline styles after animation so tilt effect works cleanly
+            setTimeout(() => {
+              card.style.transition = '';
+              card.style.opacity = '';
+              card.style.transform = '';
+            }, 550 + i * 60);
           }, 50);
         });
       }
@@ -542,13 +549,17 @@ async function fetchPexelsLandscape(query, perPage = 1, page = 1) {
   const heroBg = document.getElementById('heroBg');
   if (!heroBg) return;
 
-  const isMobile = () => window.innerWidth < 768;
-  if (isMobile()) return;
+  if (window.innerWidth < 768) return;
 
+  let parTicking = false;
   window.addEventListener('scroll', () => {
-    if (isMobile()) return;
-    const y = window.scrollY;
-    heroBg.style.transform = `translateY(${y * 0.2}px)`;
+    if (!parTicking) {
+      parTicking = true;
+      requestAnimationFrame(() => {
+        heroBg.style.transform = `translateY(${window.scrollY * 0.2}px)`;
+        parTicking = false;
+      });
+    }
   }, { passive: true });
 })();
 
@@ -645,10 +656,17 @@ async function fetchPexelsLandscape(query, perPage = 1, page = 1) {
   `;
   document.body.appendChild(bar);
 
+  let progTicking = false;
   window.addEventListener('scroll', () => {
-    const scrollable = document.documentElement.scrollHeight - window.innerHeight;
-    const pct = scrollable > 0 ? (window.scrollY / scrollable) * 100 : 0;
-    bar.style.width = `${pct}%`;
+    if (!progTicking) {
+      progTicking = true;
+      requestAnimationFrame(() => {
+        const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = scrollable > 0 ? (window.scrollY / scrollable) * 100 : 0;
+        bar.style.width = `${pct}%`;
+        progTicking = false;
+      });
+    }
   }, { passive: true });
 })();
 
@@ -748,9 +766,15 @@ async function fetchPexelsLandscape(query, perPage = 1, page = 1) {
     if (Math.abs(diff) > 60) goTo(diff < 0 ? activeIdx + 1 : activeIdx - 1);
   });
 
-  // Auto-advance every 6s
-  let autoTimer = setInterval(() => goTo(activeIdx + 1), 6000);
-  stack.addEventListener('pointerdown', () => clearInterval(autoTimer));
+  // Auto-advance every 6s – restarts after interaction
+  function startAutoTimer() {
+    return setInterval(() => goTo(activeIdx + 1), 6000);
+  }
+  let autoTimer = startAutoTimer();
+  stack.addEventListener('pointerdown', () => {
+    clearInterval(autoTimer);
+    autoTimer = startAutoTimer();
+  });
 
   // Init
   updateStack();
